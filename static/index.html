@@ -19,13 +19,30 @@
     <script src="json2.js"></script>
   </head>
   <body bgcolor="white" height="100%" width="100%">
+    <style>
+      .msg {
+        padding: 1em;
+        border-radius: 1.5em;
+        box-shadow: 0.6em 0.6em 0.3em #888888;
+        margin: 1em;
+      }
+      #queue {
+        margin: 1em;
+      }
+    </style>
     <div id="debug"></div>
+    <div id="queue"></div>
+
     <canvas
       id="c"
       width="100%"
       height="100%"
       style="-webkit-tap-highlight-color: transparent"
     ></canvas>
+    <p>
+      Since only 100 dots will be draw, so if canva does not display immediately
+      in another tab/window, continue draw it.
+    </p>
 
     <script>
       // Fix me
@@ -52,17 +69,11 @@
           lineWidth = 3;
           var x = entity["x"];
           var y = entity["y"];
-          //moveTo(x,y);
-          fillStyle = entity["colour"];
+          var rgb = [];
+          for (var i = 0; i < 3; i++) rgb.push(Math.floor(Math.random() * 255));
+          fillStyle = "rgb(" + rgb.join(",") + ")";
           strokeStyle = fillStyle;
-          arc(
-            x,
-            y,
-            entity["radius"] ? entity["radius"] : 50,
-            0,
-            2.0 * Math.PI,
-            false
-          );
+          arc(x, y, 10, 256, Math.PI, (Math.PI * 3) / 2);
           stroke();
         }
       }
@@ -131,11 +142,17 @@
       function addEntity(entity, data) {
         world[entity] = data;
         drawNextFrame(); // (but should we?)
+        drawFrame();
         //XXX: Send a XHTML Request that updates the entity you just modified!
+        var xhr = new XMLHttpRequest();
+        url = "http://" + host + "/entity/" + entity;
+        xhr.open("PUT", url);
+        xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        xhr.send(JSON.stringify(data));
       }
       var counter = 0;
       function addEntityWithoutName(data) {
-        var name = "X" + (counter++ % 100);
+        var name = "X" + (counter++ % 2000);
         addEntity(name, data);
       }
 
@@ -238,26 +255,71 @@
       // Add the application specific mouse listeners!
       //XXX: TODO Make these prettier!
       mouse.mousedowners.push(function (x, y, clicked, e) {
-        addEntityWithoutName({ x: x, y: y, colour: "blue" });
+        addEntityWithoutName({
+          x: x,
+          y: y,
+          colour: getRandomColor(),
+          radius: 5,
+        });
       });
 
       mouse.mouseuppers.push(function (x, y, clicked, e) {
-        addEntityWithoutName({ x: x, y: y, colour: "red" });
+        addEntityWithoutName({
+          x: x,
+          y: y,
+          colour: getRandomColor(),
+          radius: 5,
+        });
       });
 
       mouse.mousedraggers.push(function (x, y, clicked, e) {
-        addEntityWithoutName({ x: x, y: y, colour: "green", radius: 10 });
+        addEntityWithoutName({
+          x: x,
+          y: y,
+          colour: getRandomColor(),
+          radius: 5,
+        });
       });
+      //REFERENCE: https://stackoverflow.com/a/1484514
+      function getRandomColor() {
+        var letters = "0123456789ABCDEF";
+        var color = "#";
+        for (var i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      }
 
       function update() {
         drawFrame();
       }
-
+      //Reference: https://github.com/abramhindle/WebSocketsExamples/blob/master/static/chat.html
+      function addMessage(msg) {
+        for (key in msg) {
+          world[key] = msg[key];
+        }
+      }
       function wsSetup() {
         var url = "ws://" + host + "/subscribe";
         socket = new WebSocket(url);
         socket.onopen = function () {
           //XXX: TODO What are you going to do here?
+          const url = "http://" + host + "/world";
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", url);
+          xhr.setRequestHeader(
+            "Content-Type",
+            "application/json;charset=UTF-8"
+          );
+          xhr.onload = function () {
+            // Request finished. Do processing here.
+            data = JSON.parse(xhr.responseText);
+            addMessage(data);
+            drawNextFrame();
+            drawFrame();
+          };
+          drawNextFrame();
+          drawFrame();
         };
         socket.onerror = function (msg) {
           debug("WebSocket Error:" + msg.data);
@@ -266,6 +328,10 @@
           try {
             debug("WebSocket Recv:" + msg.data);
             //XXX: TODO What are you going to do here?
+            msg_json = JSON.parse(msg.data);
+            addMessage(msg_json);
+            drawNextFrame();
+            drawFrame();
           } catch (e) {
             alert("socket on message: " + e);
           }

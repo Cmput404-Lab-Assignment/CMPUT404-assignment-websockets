@@ -59,3 +59,8 @@ Contributors
 * Mark Galloway
 * Abram Hindle
 * Cole Mackenzie
+
+Reference  
+=========
+https://github.com/abramhindle/WebSocketsExamples  
+https://github.com/MensahDev/assignment5-sockets/blob/main/sockets.py

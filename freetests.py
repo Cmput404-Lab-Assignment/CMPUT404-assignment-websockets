@@ -70,7 +70,6 @@ class WorldClient(WebSocketClient):
         kcnt = 0
         for key in w:
             if (key in world):
-                print("--------------------------", world[key], w[key])
                 assert world[key] == w[key]
             world[key] = w[key]
             kcnt += 1
